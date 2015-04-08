@@ -12,7 +12,7 @@ import sys
 
 
 def set_stations_syuden(st1,st2,time,flag):
-    conn = sqlite3.connect('/home/yokota/lastre/syuden.sqlite')
+    conn = sqlite3.connect('/home/job/githome/harvest/syuden.sqlite')
 
     c = conn.cursor()
     #table_exists = c.execute("""
@@ -65,7 +65,6 @@ def get_syuden(st1,st2,is_holiday=False):
         
     soup     = BeautifulSoup( response.read().replace('"+"','') )
     route    = soup.find_all('li','time')
-    time.sleep(30)
     syuden_candidate = []
     for lll in route :
         if "発" in lll.encode('utf-8') :
@@ -83,6 +82,8 @@ def get_syuden(st1,st2,is_holiday=False):
     return "{0}:{1}".format(str(syuden[1]).zfill(2),str(syuden[2]).zfill(2))
 
 def harvest(filename):
+    import socket
+    socket.setdefaulttimeout(3)
     f = open(filename,'r')
     station_list = [ line.decode('utf-8').replace('\n','') for line in f.readlines()]
     f.close()
@@ -92,13 +93,19 @@ def harvest(filename):
             if st1==st2:
                 continue
             count += 1
+            if count <= 23*1805:
+                continue
+            time.sleep(5)
             print u"count:{0},{1},{2}".format(count,st1,st2)
-            syuden = get_syuden(st1,st2,True)
-            if syuden:
-                set_stations_syuden(st1,st2,syuden,0)
-            syuden = get_syuden(st1,st2,False)
-            if syuden:
-                set_stations_syuden(st1,st2,syuden,1)
+            try:
+                syuden = get_syuden(st1,st2,True)
+                if syuden:
+                    set_stations_syuden(st1,st2,syuden,0)
+                syuden = get_syuden(st1,st2,False)
+                if syuden:
+                    set_stations_syuden(st1,st2,syuden,1)
+            except socket.error as e:
+                time.sleep(5*60)
 
 
 
