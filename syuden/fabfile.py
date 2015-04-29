@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
+u'''
+終電のデータベースを収集するためのデプロイプログラム
++ 環境設定
++ ファイル配布
++ プログラム実行したい(TODO)
++ 結果を収集したい(TODO)
 
+'''
 from fabric.api import task, run, env, put, parallel, sudo
 from fabric.contrib.files import exists
 from itertools import cycle, permutations
@@ -65,11 +72,14 @@ def distribute_station_list(station_list_filename):
     u'''駅のリストデータ等分割してホストサーバに配布する'''
     NUM_HOSTS = len(env.hosts)
 
+    # TODO:ファイル分割をすべきかどうかの条件分岐をもっと良いものに
     if not os.path.exists('split_0'):
         split_file(station_list_filename, NUM_HOSTS)
 
     if not exists('./station'):
         run('mkdir -m 777 station')
+
+    # TODO:ホストによって配布するファイルを変えたい
     for split_filename in [ 'split_{0}'.format(i) for i in range(NUM_HOSTS)]:
         put(split_filename, 'station/'+split_filename)
 
