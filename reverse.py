@@ -10,9 +10,10 @@ def view_geostation() :
 
     for layer1 in geost :
         for layer2 in geost[layer1] :
+            pass
             
 
-def generate_geostation() :
+def generate_geostation():
     f = open('stationgeo.json',"r") 
     stgeo = json.loads(f.read())
     f.close()

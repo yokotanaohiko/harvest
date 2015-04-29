@@ -105,6 +105,8 @@ def harvest(filename):
                 if syuden:
                     set_stations_syuden(st1,st2,syuden,1)
             except socket.error as e:
+                with open('harvest.log', 'a') as f:
+                    f.write('')
                 time.sleep(5*60)
 
 
