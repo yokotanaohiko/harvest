@@ -2,7 +2,6 @@
 # -*- coding:utf-8 -*-
 
 from bs4 import BeautifulSoup
-from datetime import datetime,timedelta
 import sqlite3
 import urllib
 import urllib2
@@ -12,13 +11,13 @@ import sys
 
 
 def set_stations_syuden(st1,st2,time,flag):
-    conn = sqlite3.connect('/home/job/githome/harvest/syuden.sqlite')
+    conn = sqlite3.connect('./syuden.sqlite')
 
     c = conn.cursor()
-    #table_exists = c.execute("""
-    #  select count(*) from sqlite_master
-    #  where type='table' and name='<syuden>'""")
-    #if not table_exists.fetchone():
+#    table_exists = c.execute("""
+#      select count(*) from sqlite_master
+#      where type='table' and name='<syuden>'""")
+#    if not table_exists.fetchone():
     try:
         c.execute(u"""create table syuden
     (id integer primary key autoincrement,from_st text,to_st text,time text,flag integer)""")
@@ -84,30 +83,25 @@ def get_syuden(st1,st2,is_holiday=False):
 def harvest(filename):
     import socket
     socket.setdefaulttimeout(3)
-    f = open(filename,'r')
-    station_list = [ line.decode('utf-8').replace('\n','') for line in f.readlines()]
-    f.close()
+    with open(filename,'r') as f:
+        station_list = [ line.decode('utf-8').replace('\n','') for line in f.readlines()]
     count = 0
-    for st1 in  station_list:
-        for st2 in station_list:
-            if st1==st2:
-                continue
-            count += 1
-            if count <= 23*1805:
-                continue
-            time.sleep(5)
-            print u"count:{0},{1},{2}".format(count,st1,st2)
-            try:
-                syuden = get_syuden(st1,st2,True)
-                if syuden:
-                    set_stations_syuden(st1,st2,syuden,0)
-                syuden = get_syuden(st1,st2,False)
-                if syuden:
-                    set_stations_syuden(st1,st2,syuden,1)
-            except socket.error as e:
-                with open('harvest.log', 'a') as f:
-                    f.write('')
-                time.sleep(5*60)
+    for station_pair in  station_list:
+        st1, st2 = station_pair.split(',')
+        count += 1
+        time.sleep(5)
+        print u"count:{0},{1},{2}".format(count,st1,st2)
+        try:
+            syuden = get_syuden(st1,st2,True)
+            if syuden:
+                set_stations_syuden(st1,st2,syuden,0)
+            syuden = get_syuden(st1,st2,False)
+            if syuden:
+                set_stations_syuden(st1,st2,syuden,1)
+        except socket.error as e:
+            with open('harvest.log', 'a') as f:
+                f.write('')
+            time.sleep(5*60)
 
 
 
