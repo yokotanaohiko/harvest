@@ -41,6 +41,7 @@ def hello():
 
 @task
 def install_tmux():
+    u'''centosにtmuxをインストール'''
     bin_list = run('ls /bin')
     cmd_list = re.split(r'\W+', bin_list.replace('\t', ''))
     if 'wget' not in cmd_list:
@@ -52,6 +53,7 @@ def install_tmux():
 
 @task
 def install_beautifulsoup():
+    u'''centosにpipとbeautifulsoupをインストール'''
     bin_list = run('ls /bin')
     cmd_list = re.split(r'\W+', bin_list.replace('\t', ''))
     if 'pip' not in cmd_list:
@@ -61,11 +63,13 @@ def install_beautifulsoup():
 
 @task
 def distribute_files():
+    u'''プログラムとデータをサーバに配布する'''
     distribute_programs()
     distribute_station_list(STATION_LIST_FILENAME)
 
 @task
 def distribute_programs():
+    u'''プログラムをサーバに配布する'''
     put('harvest_syuden.py', 'station/harvest_syuden.py')
 
 def distribute_station_list(station_list_filename):
