@@ -1,36 +1,113 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
 from bs4 import BeautifulSoup
 import sqlite3
 import urllib
 import urllib2
-import re
 import time
 import sys
+import random
+import datetime
 
 
-def set_stations_syuden(st1,st2,time,flag):
+def storing_syuden_info(from_st,to_st,syuden_time,route,route_times,route_railways,is_holiday):
     conn = sqlite3.connect('./syuden.sqlite')
 
     c = conn.cursor()
-#    table_exists = c.execute("""
-#      select count(*) from sqlite_master
-#      where type='table' and name='<syuden>'""")
-#    if not table_exists.fetchone():
+
+    # テーブルがなければ作成
     try:
         c.execute(u"""create table syuden
-    (id integer primary key autoincrement,from_st text,to_st text,time text,flag integer)""")
+            (
+            id integer primary key autoincrement,
+            from_st text,
+            to_st text,
+            syuden_time text,
+            route text,
+            route_times text,
+            route_railways text,
+            is_holiday integer
+            )""")
     except:
         #print "you already made syuden table"
         pass
 
     c.execute(u"""insert into syuden
-        values (NULL,'{0}','{1}','{2}',{3})""".format(st1,st2,time,flag))
+        values (
+        NULL,
+        '{0}',
+        '{1}',
+        '{2}',
+        '{3}',
+        '{4}',
+        '{5}',
+        {6}
+        )""".format(from_st,to_st,syuden_time,route,route_times,route_railways,is_holiday))
     conn.commit()
     c.close()
 
-def get_syuden(st1,st2,is_holiday=False):
+
+def harvest(filename):
+    u'''
+    駅名のペアが書かれたファイルを読み込んで、終電情報を保存するプログラム
+    
+    ファイルの内容:カンマ区切りの駅名
+    六本木,越谷
+    '''
+    import socket
+    socket.setdefaulttimeout(3)
+    with open(filename,'r') as f:
+        station_list = [ line.decode('utf-8').replace('\n','') for line in f.readlines()]
+    count = 0
+    for station_pair in  station_list:
+        st1, st2 = station_pair.split(',')
+        count += 1
+        time.sleep(2+random.randint(1,5)) # 期待値は5秒
+        print u"count:{0},{1},{2}".format(count,st1,st2)
+        try:
+            # 休日の終電情報を取得
+            syuden_infos = scraping_syuden_infos(st1,st2,True)
+            if syuden_infos:
+                storing_syuden_info(*the_latest_syuden_infos(syuden_infos))
+
+            # 平日の終電情報を取得
+            syuden_infos = scraping_syuden_infos(st1,st2,False)
+            if syuden_infos:
+                storing_syuden_info(*the_latest_syuden_infos(syuden_infos))
+
+        except socket.error as e:
+            with open('harvest.log', 'a') as f:
+                f.write('{0}\t{1}'.format(datetime.datetime.now(), e))
+            time.sleep(5*60) # エラーが出たら5分待つ
+
+def the_latest_syuden_infos(syuden_info_list):
+    syuden_time_list = [info['syuden_time'] for info in syuden_info_list]
+    # 日付をまたいでいるケースの処理+時間の比較のために秒に直す
+    def time_to_minutes(time):
+        hour, minutes = map(int, time.split(':'))
+        if hour < 5:
+            hour += 24
+        return hour*60+minutes
+
+    # ルートの中で、もっとも遅い終電の情報を取得
+    syuden_minutes_list = map(time_to_minutes, syuden_time_list)
+    latest_syuden_index = syuden_minutes_list.index(max(syuden_minutes_list))
+    latest_syuden_info = syuden_info_list[latest_syuden_index]
+
+    return [
+            latest_syuden_info['from_station'],
+            latest_syuden_info['to_station'],
+            latest_syuden_info['syuden_time'],
+            '->'.join(latest_syuden_info['station_list']),
+            '->'.join(latest_syuden_info['time_list']),
+            '->'.join(latest_syuden_info['railway_list']),
+            int(latest_syuden_info['is_holiday'])
+            ]
+
+
+
+def scraping_syuden_infos(st1,st2,is_holiday=False):
     headers = {'User-Agent':'Mozilla/5.0(X11; Linux i686) AppleWebKit/534.30(KHTML, like Gec    ko) Ubuntu/11.04 Chromium/12.0.742.112 Chrome/12.0.742.112 Safari/534.30'}
     url="http://transit.loco.yahoo.co.jp/search/result"
     if is_holiday:
@@ -61,51 +138,44 @@ def get_syuden(st1,st2,is_holiday=False):
         print >> sys.stderr, "you sent wrong station name"
         #print >> sys.stderr, "st1={0},st2={1}".format(st1,st2)
         return False
-        
-    soup     = BeautifulSoup( response.read().replace('"+"','') )
-    route    = soup.find_all('li','time')
-    syuden_candidate = []
-    for lll in route :
-        if "発" in lll.encode('utf-8') :
-            m=re.search("\d{2}:\d{2}",lll.encode('utf-8'))
-            if m :
-                hour,minute = map(int,m.group().split(':'))
-                if hour < 5 : hour += 24
-                second = hour*3600+minute*60
-                syuden_candidate.append([second,hour,minute]) 
+       
+    #syuden_list = []
+    soup     = BeautifulSoup( response.read() )
 
-    try:
-        syuden = max(syuden_candidate,key=lambda x:x[0])
-    except:
-        return False
-    return "{0}:{1}".format(str(syuden[1]).zfill(2),str(syuden[2]).zfill(2))
+    route_list = []
+    # 経路を抽出
+    for route_detail in soup.find_all('div', 'routeDetail'):
+        route_info = {}
 
-def harvest(filename):
-    import socket
-    socket.setdefaulttimeout(3)
-    with open(filename,'r') as f:
-        station_list = [ line.decode('utf-8').replace('\n','') for line in f.readlines()]
-    count = 0
-    for station_pair in  station_list:
-        st1, st2 = station_pair.split(',')
-        count += 1
-        time.sleep(5)
-        print u"count:{0},{1},{2}".format(count,st1,st2)
-        try:
-            syuden = get_syuden(st1,st2,True)
-            if syuden:
-                set_stations_syuden(st1,st2,syuden,0)
-            syuden = get_syuden(st1,st2,False)
-            if syuden:
-                set_stations_syuden(st1,st2,syuden,1)
-        except socket.error as e:
-            with open('harvest.log', 'a') as f:
-                f.write('')
-            time.sleep(5*60)
+        # 休日かどうかの情報を辞書に追加
+        route_info['is_holiday'] = is_holiday
 
+        # 駅と時間を取得
+        station_list = []
+        time_list = []
+        for station_info in route_detail.find_all('div','station'):
+            time_list.append(','.join([times.string for times in station_info.find('ul','time').find_all('li')]))
+            station_list.append(station_info.dl.dt.a.string)
+        route_info['station_list'] = station_list
+        route_info['time_list'] = time_list
 
+        # 発車駅と到着駅情報を辞書に追加
+        route_info['from_station'] = station_list[0]
+        route_info['to_station'] = station_list[-1]
+
+        # 終電の発車時刻を取得
+        route_info['syuden_time'] = time_list[0]
+
+        # 路線を取得
+        railway_list = []
+        for railway_info in route_detail.find_all('li','transport'):
+            railway_list.append(railway_info.div.contents[2].strip())
+        route_info['railway_list'] = railway_list
+
+        route_list.append(route_info)
+
+    return route_list
 
 if __name__ == '__main__':
-    #set_stations_syuden('美加の台','難波','23:01:00',1)
-    #print get_syuden(u'三国ヶ丘',u'千早口')
+    #storing_syuden_info(*the_latest_syuden_infos(scraping_syuden_infos(u'越谷',u'六本木',is_holiday=True)))
     harvest(sys.argv[1])
