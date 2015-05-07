@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-
+u'''
+終電情報を収集するプログラム
+'''
 from bs4 import BeautifulSoup
 import sqlite3
 import urllib
@@ -12,6 +14,7 @@ import datetime
 
 
 def storing_syuden_info(from_st,to_st,syuden_time,route,route_times,route_railways,is_holiday):
+    u'''入力された終電情報をsqliteに書き込むプログラム'''
     conn = sqlite3.connect('./syuden.sqlite')
 
     c = conn.cursor()
@@ -54,6 +57,9 @@ def harvest(filename):
     
     ファイルの内容:カンマ区切りの駅名
     六本木,越谷
+    六本木,北千住
+    ...
+
     '''
     import socket
     socket.setdefaulttimeout(3)
@@ -82,6 +88,13 @@ def harvest(filename):
             time.sleep(5*60) # エラーが出たら5分待つ
 
 def the_latest_syuden_infos(syuden_info_list):
+    u'''
+    複数の終電情報からもっとも遅い終電を取得するプログラム
+    入力:
+        複数の終電情報のリスト
+    出力:
+        もっとも遅い終電情報をリストで返す
+    '''
     syuden_time_list = [info['syuden_time'] for info in syuden_info_list]
     # 日付をまたいでいるケースの処理+時間の比較のために秒に直す
     def time_to_minutes(time):
@@ -108,6 +121,23 @@ def the_latest_syuden_infos(syuden_info_list):
 
 
 def scraping_syuden_infos(st1,st2,is_holiday=False):
+    u'''
+    終電情報をスクレイピングするプログラム
+    入力:
+        st1:出発地
+        st2:到着地
+        is_holiday:休日フラグ
+    出力:
+        終電情報のリスト
+        終電情報は
+        + 出発地(from_station)
+        + 到着地(to_station)
+        + 終電の時刻(syuden_time)
+        + 経路(station_list)
+        + 乗り換え時間(time_list)
+        + 運行会社(railway_list)
+        で構成される辞書
+    '''
     headers = {'User-Agent':'Mozilla/5.0(X11; Linux i686) AppleWebKit/534.30(KHTML, like Gec    ko) Ubuntu/11.04 Chromium/12.0.742.112 Chrome/12.0.742.112 Safari/534.30'}
     url="http://transit.loco.yahoo.co.jp/search/result"
     if is_holiday:
