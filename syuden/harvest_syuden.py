@@ -62,7 +62,7 @@ def harvest(filename):
 
     '''
     import socket
-    socket.setdefaulttimeout(3)
+    socket.setdefaulttimeout(30)
     with open(filename,'r') as f:
         station_list = [ line.decode('utf-8').replace('\n','') for line in f.readlines()]
     count = 0
@@ -112,9 +112,9 @@ def the_latest_syuden_infos(syuden_info_list):
             latest_syuden_info['from_station'],
             latest_syuden_info['to_station'],
             latest_syuden_info['syuden_time'],
-            '->'.join(latest_syuden_info['station_list']),
-            '->'.join(latest_syuden_info['time_list']),
-            '->'.join(latest_syuden_info['railway_list']),
+            '>'.join(latest_syuden_info['station_list']),
+            '>'.join(latest_syuden_info['time_list']),
+            '>'.join(latest_syuden_info['railway_list']),
             int(latest_syuden_info['is_holiday'])
             ]
 
