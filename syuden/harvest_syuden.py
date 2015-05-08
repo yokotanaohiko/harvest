@@ -183,9 +183,24 @@ def scraping_syuden_infos(st1,st2,is_holiday=False):
         # 駅と時間を取得
         station_list = []
         time_list = []
+        err_flag = False
+        err_message = None
         for station_info in route_detail.find_all('div','station'):
-            time_list.append(','.join([times.string for times in station_info.find('ul','time').find_all('li')]))
-            station_list.append(station_info.dl.dt.a.string)
+            try:
+                time_list.append(','.join([times.string for times in station_info.find('ul','time').find_all('li')]))
+            except Exception as e:
+                err_flag = True
+                err_message = str(e)
+
+            try:
+                if station_info.dl.dt.a:
+                    station_list.append(station_info.dl.dt.a.string)
+                else:
+                    station_list.append(station_info.dl.dt.string)
+            except Exception as e:
+                err_flag = True
+                err_message = str(e)
+
         route_info['station_list'] = station_list
         route_info['time_list'] = time_list
 
@@ -199,7 +214,16 @@ def scraping_syuden_infos(st1,st2,is_holiday=False):
         # 路線を取得
         railway_list = []
         for railway_info in route_detail.find_all('li','transport'):
-            railway_list.append(railway_info.div.contents[2].strip())
+            try:
+                railway_list.append(railway_info.div.contents[2].strip())
+            except Exception as e:
+                err_flag = True
+                err_message = str(e)
+
+        if err_flag:
+            print '{0},{1}'.format(station_list[0],station_list[1])
+            print err_message
+
         route_info['railway_list'] = railway_list
 
         route_list.append(route_info)
@@ -207,5 +231,5 @@ def scraping_syuden_infos(st1,st2,is_holiday=False):
     return route_list
 
 if __name__ == '__main__':
-    #storing_syuden_info(*the_latest_syuden_infos(scraping_syuden_infos(u'越谷',u'六本木',is_holiday=True)))
+    #storing_syuden_info(*the_latest_syuden_infos(scraping_syuden_infos(u'宮の坂',u'泉市民体育館(立川バス)',is_holiday=True)))
     harvest(sys.argv[1])
